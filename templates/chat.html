@@ -1,0 +1,139 @@
+<!-- templates/chat.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Assistant</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-header">
+            <div class="header-content">
+                <div class="avatar">⚕️</div>
+                <div class="header-text">
+                    <h1>Medical Assistant</h1>
+                    <div class="subheader">Powered by Gemini AI</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container" id="chat-container">
+            <div class="message bot-message">
+                <div class="message-content">
+                    <div class="message-text">Hello! I'm your medical assistant. How can I help you today?</div>
+                    <div class="message-timestamp">Just now</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <textarea id="user-input" placeholder="Type your medical question..." rows="1"></textarea>
+                <button id="send-btn" class="send-button">
+                    <svg class="send-icon" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 11L20 11M15 6L20 11L15 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="disclaimer">Medical Assistant can make mistakes. Always verify important information.</div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Auto-resize textarea
+            function adjustTextarea() {
+                const textarea = $('#user-input');
+                textarea.height('auto').height(textarea[0].scrollHeight);
+            }
+            function formatResponse(text) {
+    // Basic markdown conversion
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\* (.*)/g, '• $1<br>')
+                    .replace(/\n/g, '<br>')
+                    .replace(/##### (.*)/g, '<h5>$1</h5>')
+                    .replace(/#### (.*)/g, '<h4>$1</h4>')
+                    .replace(/### (.*)/g, '<h3>$1</h3>')
+                    .replace(/## (.*)/g, '<h2>$1</h2>');
+}
+            // Add new message to chat
+            function addMessage(content, isUser) {
+                const timestamp = new Date().toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const formattedContent = isUser ? content : formatResponse(content);
+                const messageClass = isUser ? 'user-message' : 'bot-message';
+
+                const messageHtml = `
+                    <div class="message ${messageClass}">
+                        <div class="message-content">
+                            <div class="message-text">${formattedContent}</div>
+                            <div class="message-timestamp">${timestamp}</div>
+                        </div>
+                    </div>
+                `;
+
+                $('#chat-container').append(messageHtml);
+                $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
+}
+
+            // Handle message sending
+            async function sendMessage() {
+                const userInput = $('#user-input');
+                const message = userInput.val().trim();
+
+                if (!message) return;
+
+                // Add user message
+                addMessage(message, true);
+                userInput.val('');
+                adjustTextarea();
+
+                try {
+                    // Show loading state
+                    $('#send-btn').addClass('loading');
+
+                    // Get bot response
+                    const response = await $.ajax({
+                        type: "POST",
+                        url: "/chat",
+                        contentType: "application/json",
+                        data: JSON.stringify({ message: message })
+                    });
+
+                    // Add bot response
+                    addMessage(response.reply, false);
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('Sorry, there was an error processing your request.', false);
+                } finally {
+                    // Reset loading state
+                    $('#send-btn').removeClass('loading');
+                }
+            }
+
+            // Event listeners
+            $('#user-input').on('input', adjustTextarea);
+
+            $('#send-btn').click(function(e) {
+                e.preventDefault();
+                sendMessage();
+            });
+
+            $('#user-input').keypress(function(e) {
+                if (e.which === 13 && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
